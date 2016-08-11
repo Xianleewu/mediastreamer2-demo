@@ -1,0 +1,72 @@
+#include "stdio.h"
+#include <mediastreamer2/mscommon.h>
+#include <mediastreamer2/mediastream.h>
+#include <mediastreamer2/msvolume.h>
+#include <mediastreamer2/msfileplayer.h>
+#include <time.h>
+#include <signal.h>
+
+static AudioStream *audio = NULL;
+
+static void stopStream(int signum);
+
+
+int main(int argc,char **argv)
+{
+    MSFilter   *playFilter;
+    MSSndCard *sndCard;
+    char *file = "/home/xianlee/wavtest.wav";
+    char *cardId = NULL;
+    int sampleRate = 44110;
+    int nchannels = 2;
+    int loop = 1;
+
+    ortp_init();
+    ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
+    ms_init();
+
+    if(argc > 1)
+    {
+        file = argv[1];
+    }
+
+    sndCard = ms_snd_card_manager_get_card(ms_snd_card_manager_get(),cardId);
+#ifdef __linux
+    if (sndCard==NULL)
+        sndCard = ms_alsa_card_new_custom(cardId, cardId);
+#endif
+
+
+    MSFilter *soundwrite = ms_snd_card_create_writer(sndCard);
+
+    playFilter = ms_filter_new(MS_FILE_PLAYER_ID);
+    ms_filter_call_method(playFilter, MS_FILE_PLAYER_OPEN, (void*)file);
+    ms_filter_call_method(playFilter,MS_FILTER_GET_SAMPLE_RATE,&sampleRate);
+    ms_filter_call_method(soundwrite,MS_FILTER_SET_SAMPLE_RATE,&sampleRate);
+    ms_filter_call_method(playFilter,MS_FILTER_GET_NCHANNELS,&nchannels);
+    ms_filter_call_method(soundwrite,MS_FILTER_SET_NCHANNELS,&nchannels);
+    ms_filter_call_method_noarg(playFilter,MS_FILE_PLAYER_START);
+
+    ms_filter_call_method(playFilter,MS_FILE_PLAYER_LOOP,&loop);
+
+    ms_filter_link( playFilter, 0, soundwrite, 0);
+    MSTicker *ticker = ms_ticker_new();
+    ms_ticker_attach( ticker, playFilter);
+
+    signal(SIGINT ,stopStream);
+    while(1)
+    {
+        sleep(1000);
+    }
+
+    return 0;
+}
+
+
+static void stopStream(int signum)
+{
+    if(audio)
+    {
+        audio_stream_stop(audio);
+    }
+}
