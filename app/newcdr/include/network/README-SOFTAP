@@ -1,0 +1,176 @@
+SOFTAP API description
+=====================================================
+
+This document describes how to use the APIs of SOFTAP.
+
+======================================================
+config.h
+--------
+
+//set default ssid of softap
+#define DEFAULT_NAME            "CarS---AP"
+
+//set default password of softap, if DEFAULT_PASSWORD is none,
+then the encryption of softap will be open.
+#define DEFAULT_PASSWORD        "12345678"
+
+//set default gateway of softap
+#define SOFTAP_GATEWAY_ADDR     "192.168.43.1"
+
+//set max number of station connection of softap
+#define SOFTAP_CLIENT_NUM       10
+
+
+
+/*****************************************************/
+#include <network/hotspot.h>
+----------------------------
+
+/* call to turn on softap
+ * Returns: 0 on success, else on failure
+ */
+int enable_Softap(void);
+
+/* call to turn off softap
+ * Returns: 0 on success, else on failure
+ */
+int disable_Softap(void);
+
+/* call to restart softap
+ * Returns: true on success, false on failure
+ */
+bool restart_Softap(void);
+
+/* get if softap is enabled
+ * Returns: true on enabled, false on disabled
+ */
+bool isSoftapEnabled(void);
+
+/* get softap's ssid from current configuration
+ * @ssid: buf to save ssid
+ * Returns: true on success, false on failure
+ */
+bool getSoftapSSID(char *ssid);
+
+/* get the way of encryption and password from configuration
+ * @pw: buf to save the passwork
+ * Returns: the way of encryption
+ *          0: NONE_SECURT,
+ *          1: WPA1_PSK,
+ *          2: WPA2_PSK,
+ */
+char getSoftap_SecType_PW(char *pw);
+
+/* set new encryption and passwork
+ * @SecType: new encryption to set(NONE_SECURT, WPA1_PSK, WPA2_PSK)
+ * @pw: new password to set
+        the size of new password need to between 8 to 63 if secType != NONE_SECURT
+ */
+void setSoftap_SecType_PW(WifiHotspotEncrypt_t SecType, char *pw);
+
+
+=====================================================================
+Demo:
+
+...
+#include <network/hotspot.h>
+
+int main(void) {
+	int ret;
+	int Encryp;
+	char buf[128];
+	char new[] = "12345678";
+
+	...
+	//check if softap is enabled, if not, enable softap
+	if (!isSoftapEnabled()) {
+		ret = enable_Softap();
+		if (!ret) {
+			printf("enable softap fail");
+			return ret;
+		}
+	}
+	
+	//get softap's default ssid and print
+	memset(buf, 0, 128);
+	if (getSoftapSSID(buf))
+		printf("softap's SSID:%s", buf);
+	}
+
+	//get softap's default password and print
+	memset(buf, 0, 128);
+	Encryp = getSoftap_SecType_PW(buf);
+	printf("Encryp:%d, password:%s", Encryp, buf);
+
+	//set a new password
+	setSoftap_SecType_PW(WPA2_PSK, new);
+	
+	//restart softap to make new password work
+	restart_Softap();
+
+	...
+}
+
+/*****************************************************/
+#include <network/hotspotCli.h>
+----------------------------
+
+/* get softap's status
+ * @buf: buf to save status
+ * Returns: 0 on success, others on failure
+ * example:
+ *     state=ENABLED
+ *     phy=phy0
+ *     freq=2437
+ *     num_sta_non_erp=0
+ *     num_sta_no_short_slot_time=0
+ *     num_sta_no_short_preamble=0
+ *     olbc=0
+ *     num_sta_ht_no_gf=1
+ *     num_sta_no_ht=0
+ *     num_sta_ht_20_mhz=1
+ *     olbc_ht=1
+ *     ht_op_mode=0x15
+ *     csa_supported=1
+ *     channel=6
+ *     secondary_channel=0
+ *     ieee80211n=1
+ *     ieee80211ac=0
+ *     vht_oper_chwidth=0
+ *     vht_oper_centr_freq_seg0_idx=0
+ *     vht_oper_centr_freq_seg1_idx=0
+ *     bss[0]=wlan0
+ *     bssid[0]=0a:0b:b4:04:f2:83
+ *     ssid[0]=CarS---AP
+ *     num_sta[0]=1
+ */
+int hostapd_cmd_status(char *buf);
+
+/* get softap's config
+ * @buf: buf to save config
+ * Returns: 0 on success, others on failure
+ * example:
+ *     bssid=0a:0b:b4:04:f2:83
+ *     ssid=CarS---AP
+ *     wps_state=disabled
+ *     key_mgmt=WPA-PSK 
+ *     group_cipher=CCMP
+ *     rsn_pairwise_cipher=CCMP
+ */
+int hostapd_cmd_get_config(char *buf);
+
+/* get all connected stations
+ * @buf: buf to save stations
+ * Returns: 0 on success, others on failure
+ * example:
+ *     [a0:86:c6:56:93:c2] [a0:86:c6:56:93:c3]
+ */
+int hostapd_cmd_get_all_stations(char *buf);
+
+/* call to monitor message from hostapd
+ * @replay: buf to save received messages
+ * @reply_len: buf length
+ * Returns: 0 on success, others on failure
+ */
+int hostapd_ctrl_recv(char *reply, size_t *reply_len);
+
