@@ -856,7 +856,8 @@ int ResourceManager::initMenuListResource(void)
 		{CFG_FILE_ML_TWM,		(void*)&rMenuList.TWMIcon},
 		{CFG_FILE_ML_FORMAT,	(void*)&rMenuList.formatIcon},
 		{CFG_FILE_ML_FACTORYRESET,	(void*)&rMenuList.factoryResetIcon},
-		{CFG_FILE_ML_FIRMWARE,		(void*)&rMenuList.firmwareIcon}
+		{CFG_FILE_ML_FIRMWARE,		(void*)&rMenuList.firmwareIcon},
+		{CFG_FILE_ML_TMX,		(void*)&rMenuList.aboutTMXIcon}
 	};
 
 	configTable3 configTableIntValue[] = {
@@ -1996,7 +1997,10 @@ const char* ResourceManager::getResMenuItemString(enum ResourceID resID)
 	case ID_MENU_LIST_FIRMWARE:
 		ptr = getLabel(LANG_LABEL_MENU_FIRMWARE);
 		break;
-		default:
+	case ID_MENU_LIST_ABOUT_TMX:
+		ptr = getLabel(LANG_LABEL_MENU_TMX);
+		break;
+	default:
 		db_error("invalid resIndex %d\n", resID);
 		return NULL;
 	}
@@ -2499,6 +2503,12 @@ int ResourceManager::getMLPICFileName(enum ResourceID resID, enum BmpType type, 
 				file = rMenuList.firmwareIcon.icon.itemAt(1);
 			else
 				file = rMenuList.firmwareIcon.icon.itemAt(0);
+			break;
+		case ID_MENU_LIST_ABOUT_TMX:
+			if(type == BMPTYPE_SELECTED)
+				file = rMenuList.aboutTMXIcon.icon.itemAt(1);
+			else
+				file = rMenuList.aboutTMXIcon.icon.itemAt(0);
 			break;
 		case ID_MENU_LIST_UNFOLD_PIC:
 			if(type == BMPTYPE_SELECTED)

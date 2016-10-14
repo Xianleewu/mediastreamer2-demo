@@ -158,6 +158,7 @@ Menu::Menu(CdrMain* pCdrMain)
 	: mCdrMain(pCdrMain)
 	, mCurActiveIcon(MB_ICON_WIN0)
 	, mCurIconCount(RP_ICON_COUNT)
+	, showTMXState(0)
 {
 	HWND hParent;
 	CDR_RECT rect;
@@ -343,8 +344,8 @@ int Menu::createMenulists(HWND hWnd, enum ResourceID* pResID, int count)
 		tmpRect.h = (contentCount+1)*itemHeight;
 		tmpRect.y = menuRect.h-mbRect.h-tmpRect.h;
 		if (tmpRect.y < 0) {
-			tmpRect.h = menuRect.h-mbRect.h;
-			tmpRect.y = 0;
+			tmpRect.h = 216;
+			tmpRect.y = 230;
 		}
 		retWnd = CreateWindowEx(CTRL_CDRMenuList, "",
 				WS_CHILD | WS_VSCROLL | LBS_SBNEVER | LBS_USEBITMAP | LBS_SCENTER,
@@ -387,7 +388,78 @@ int Menu::createSubWidgets(HWND hWnd)
 	createMenulists(hWnd, rpMenuResourceID, RP_ICON_COUNT);
 	createMenulists(hWnd, ppMenuResourceID, PP_ICON_COUNT);
 
+	CreateWindowEx(CTRL_STATIC, "",
+			WS_CHILD | SS_BITMAP | SS_CENTERIMAGE,
+			WS_EX_TRANSPARENT,
+			ID_MENUTMX_QR,
+			0, 0, 960, 540,
+			hWnd, 0);
+
+	retWnd = CreateWindowEx(CTRL_STATIC, "",
+			WS_CHILD | WS_VISIBLE | SS_SIMPLE | SS_VCENTER | SS_CENTER,
+			WS_EX_TRANSPARENT,
+			ID_MENUTMX_SNO,
+			40, 220, 500, 90,
+			hWnd, 0);
+	mLogFont = CreateLogFont("*", "fixed", "GB2312-0",
+			FONT_WEIGHT_REGULAR, FONT_SLANT_ROMAN, FONT_FLIP_NIL,
+			FONT_OTHER_AUTOSCALE, FONT_UNDERLINE_NONE, FONT_STRUCKOUT_NONE, 38, 0);
+	SetWindowFont(retWnd, mLogFont);
+
+	//SetWindowElementAttr(retWnd, WE_FGC_WINDOW, Pixel2DWORD(HDC_SCREEN, 0xFFFFFFFF));
+
 	return 0;
+}
+
+void Menu::showTMXMessage(void)
+{
+	int ret;
+	String8 bmpFile;
+	HWND retWnd;
+
+	if ((ret = LoadBitmapFromFile(HDC_SCREEN, &tmxImage, "system/etc/tmximage.png")) != ERR_BMP_OK) {
+		db_error("load %s failed, ret is %d\n", "system/etc/tmximage.png", ret);
+		return;
+	}
+
+	retWnd = GetDlgItem(mHwnd, ID_MENUTMX_QR);
+	SendMessage(retWnd, STM_SETIMAGE, (WPARAM)&tmxImage, 0);
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_QR), SW_SHOWNORMAL);
+
+	showTMXState = 1;
+}
+
+void Menu::showTMXNextMessage(void)
+{
+	int ret;
+	String8 bmpFile;
+	HWND retWnd;
+	char *imei;
+	char buf[60];
+
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_QR), SW_HIDE);
+
+	if ((ret = LoadBitmapFromFile(HDC_SCREEN, &tmxImage, "system/etc/tmximage2.png")) != ERR_BMP_OK) {
+		db_error("load %s failed, ret is %d\n", "system/etc/tmximage2.png", ret);
+		return;
+	}
+
+	retWnd = GetDlgItem(mHwnd, ID_MENUTMX_QR);
+	SendMessage(retWnd, STM_SETIMAGE, (WPARAM)&tmxImage, 0);
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_QR), SW_SHOWNORMAL);
+
+	imei = getImei();
+	sprintf(buf, "IMEI: %s", imei);
+	SetWindowText(GetDlgItem(mHwnd, ID_MENUTMX_SNO), buf);
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_SNO), SW_SHOWNORMAL);
+	showTMXState = 2;
+}
+
+void Menu::hideTMXMessage(void)
+{
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_QR), SW_HIDE);
+	ShowWindow(GetDlgItem(mHwnd, ID_MENUTMX_SNO), SW_HIDE);
+	showTMXState = 0;
 }
 
 int Menu::getMenuContentCount(enum ResourceID resID)
@@ -1251,6 +1323,9 @@ int Menu::ShowSubMenu(HWND hMenuList, enum ResourceID resID)
 	case ID_MENU_LIST_FIRMWARE:
 		showFirmwareDialog(mHwnd);
 		break;
+	case ID_MENU_LIST_ABOUT_TMX:
+		showTMXMessage();
+		break;
 	default:
 		if(getSubMenuData(resID, subMenuData) < 0) {
 			db_error("get submenu data failed\n");
@@ -1486,6 +1561,11 @@ int HandleSubMenuChange(enum ResourceID resID, int newSel)
 
 int Menu::keyProc(int keyCode, int isLongPress)
 {
+	if (showTMXState == 2) {
+		hideTMXMessage();
+		return WINDOWID_MENU;
+	}
+
 	switch(keyCode) {
 	case CDR_KEY_MODE:
 		{
@@ -1493,6 +1573,11 @@ int Menu::keyProc(int keyCode, int isLongPress)
 			RECT rect;
 			int oldActiveIcon;
 			int current;
+
+			if (showTMXState) {
+				hideTMXMessage();
+				return WINDOWID_MENU;
+			}
 
 			oldActiveIcon = mCurActiveIcon;			
 			current = mIconPic.itemAt(oldActiveIcon)->get();
@@ -1545,6 +1630,11 @@ int Menu::keyProc(int keyCode, int isLongPress)
 			ResourceManager *rm;
 			bool isModified;
 
+			if (showTMXState == 1) {
+				showTMXNextMessage();
+				return WINDOWID_MENU;
+			}
+
 			hMenuList = GetFocusChild(mHwnd);
 			resID = (enum ResourceID)GetDlgCtrlID(hMenuList);
 			hlItem = SendMessage(hMenuList, LB_GETCURSEL, 0, 0);
@@ -1580,6 +1670,10 @@ int Menu::keyProc(int keyCode, int isLongPress)
 		}
 		break;
 	default:
+		if (showTMXState) {
+			hideTMXMessage();
+			return WINDOWID_MENU;
+		}
 		break;
 	}
 

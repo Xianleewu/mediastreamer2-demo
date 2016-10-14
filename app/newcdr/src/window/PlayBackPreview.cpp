@@ -577,7 +577,7 @@ void PlayBackPreview::showThumnail(void)
 	} else {
 		SendMessage(retWnd, STM_SETIMAGE, (WPARAM)&bmpImage, 0);
 		ShowWindow(GetDlgItem(mHwnd, ID_PLAYBACKPREVIEW_IMAGE), SW_SHOWNORMAL);	
-	
+	return;
 		HWND hParent = mCdrMain->getHwnd();
                 CDR_RECT cdr_rect;
                 RECT rect;

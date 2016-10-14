@@ -559,6 +559,9 @@ public:
 	void updateActiveWindowFont();
 	int ShowFormattingTip();
 	void doFactoryReset(void);
+	void showTMXMessage(void);
+	void showTMXNextMessage(void);
+	void hideTMXMessage(void);
 private:
 	int getMenuListAttr(menuListAttr_t &attr, enum ResourceID resID);
 	int getMenuContentCount(enum ResourceID resID);
@@ -585,6 +588,11 @@ private:
 	MenuWindow_t mCurMenuWindow;
 	unsigned int mCurActiveIcon;
 	unsigned int mCurIconCount;
+#ifdef USE_NEWUI
+	BITMAP tmxImage;
+	PLOGFONT mLogFont;
+	int showTMXState;
+#endif
 };
 #endif
 

@@ -20,13 +20,13 @@
 #include "resourceManager.h"
 
 #ifdef MODEM_ENABLE
-#define MENU_LIST_MAX_COUNT 20
+#define MENU_LIST_MAX_COUNT 21
 #else
-#define MENU_LIST_MAX_COUNT 19
+#define MENU_LIST_MAX_COUNT 20
 #endif
 
 #define RP_ICON_COUNT 4
-#define RP_SETTING_MENU_COUNT 16
+#define RP_SETTING_MENU_COUNT 17
 enum ResourceID rpMenuResourceID[] = {
 	ID_MENU_LIST_VQ,
 	ID_MENU_LIST_VTL,
@@ -50,11 +50,12 @@ enum ResourceID rpMenuResourceID[] = {
 	ID_MENU_LIST_TWM,
 	ID_MENU_LIST_FORMAT,
 	ID_MENU_LIST_FRESET,
+	ID_MENU_LIST_ABOUT_TMX,
 	ID_MENU_LIST_FIRMWARE
 };
 
 #define PP_ICON_COUNT 2
-#define PP_SETTING_MENU_COUNT 15
+#define PP_SETTING_MENU_COUNT 16
 enum ResourceID ppMenuResourceID[] = {
 	ID_MENU_LIST_PQ,
 	ID_MENU_LIST_PHOTO_SETTING,
@@ -75,6 +76,7 @@ enum ResourceID ppMenuResourceID[] = {
 	ID_MENU_LIST_TWM,
 	ID_MENU_LIST_FORMAT,
 	ID_MENU_LIST_FRESET,
+	ID_MENU_LIST_ABOUT_TMX,
 	ID_MENU_LIST_FIRMWARE
 };
 

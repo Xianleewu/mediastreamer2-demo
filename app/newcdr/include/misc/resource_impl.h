@@ -65,6 +65,7 @@
 #define CFG_FILE_ML_FORMAT			"menu_list_format"
 #define CFG_FILE_ML_FACTORYRESET	"menu_list_factory_reset"
 #define CFG_FILE_ML_FIRMWARE		"menu_list_firmware"
+#define CFG_FILE_ML_TMX			"menu_list_tmx"
 
 #define CFG_FILE_PLBPREVIEW				"playback_preview"
 #define CFG_FILE_PLBPREVIEW_IMAGE		"playback_preview_image"

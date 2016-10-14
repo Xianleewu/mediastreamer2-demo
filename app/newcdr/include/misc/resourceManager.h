@@ -42,6 +42,8 @@ enum ResourceID {
 	#ifdef USE_NEWUI
 	ID_MENU,
 	ID_MENUBAR,
+	ID_MENUTMX_QR,
+	ID_MENUTMX_SNO,
 	ID_MENUBAR_VLINE,
 	ID_MENUBAR_LIGHT,
 	ID_MENUBAR_ICON_WIN0,
@@ -88,6 +90,7 @@ enum ResourceID {
 	ID_MENU_LIST_FORMAT,
 	ID_MENU_LIST_FRESET,
 	ID_MENU_LIST_FIRMWARE,
+	ID_MENU_LIST_ABOUT_TMX,
 	ID_MENU_LIST_UNFOLD_PIC,
 	ID_MENU_LIST_CHECKBOX_PIC,
 	ID_MENU_LIST_UNCHECKBOX_PIC,	/* end of menulist */
@@ -570,6 +573,7 @@ namespace android{
 			currentIcon_t formatIcon;
 			currentIcon_t factoryResetIcon;
 			currentIcon_t firmwareIcon;
+			currentIcon_t aboutTMXIcon;
 		}rMenuList;
 
 		struct {
