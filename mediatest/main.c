@@ -23,10 +23,12 @@ int main(int argc, char **argv)
 	MSPixFmt camFmt = MS_YUV420P;
 	MSVideoSize mSize = {640, 360};
 	float fps = 30.0;
-	char *local_ip = "127.0.0.1";
+	char *local_ip = "0.0.0.0";
 	char *remote_ip = "127.0.0.1";
+	int local_port = 6050;
 	int remote_port = 6060;
 	int socket_buf_size = 2000000;
+	int pt_num = 96;
 	RtpProfile *profile = NULL;
 	PayloadType *pt = NULL;
 	OrtpEvQueue *mEventQ = NULL;
@@ -42,14 +44,14 @@ int main(int argc, char **argv)
 	ortp_set_log_level_mask(ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
 	ms_init();
 
-	mSession = ms_create_duplex_rtp_session("172.16.14.192", 6050, 6051);
-	profile = rtp_profile_new("H264");
+	mSession = ms_create_duplex_rtp_session("172.16.14.192", local_port, local_port + 1);
+	profile = rtp_profile_new("My RTP profile");
 	pt = payload_type_clone(&payload_type_h264);
-	rtp_profile_set_payload(profile, 96, pt);
+	rtp_profile_set_payload(profile, pt_num, pt);
 	rtp_session_set_profile(mSession,profile);
 	rtp_session_set_remote_addr_full(mSession, remote_ip, remote_port, remote_ip, remote_port + 1);
 	rtp_session_resync(mSession);
-	rtp_session_set_payload_type(mSession,pt);
+	rtp_session_set_payload_type(mSession,pt_num);
 	rtp_session_enable_rtcp(mSession, TRUE);
 
 	rtp_session_set_jitter_compensation(mSession, -1);
@@ -91,11 +93,10 @@ int main(int argc, char **argv)
     ms_ticker_attach(mTicker,imgReader);
 
 	rtp_session_register_event_queue(mSession, mEventQ);
-	rtp_session_resync(mSession);
 
 	while(1)
 	{
-		rtp_session_resync(mSession);
+		sleep(2);
 	}
 
 	return 0;
