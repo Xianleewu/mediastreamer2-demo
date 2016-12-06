@@ -27,7 +27,21 @@
 *.i*86
 *.x86_64
 *.hex
+*.user*
+*.stash
 
 # Debug files
 *.dSYM/
 *.su
+
+#source insight
+*.IAB
+*.IAD
+*.IMB
+*.IMD
+*.PFI
+*.PO
+*.PR
+*.PRI
+*.PS
+*.WK3
