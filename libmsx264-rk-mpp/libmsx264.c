@@ -49,7 +49,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MPP_VSWAP(a, b)         { a ^= b; b ^= a; a ^= b; }
 
 #define RC_MARGIN 10000 /*bits per sec*/
-#define SPECIAL_HIGHRES_BUILD_CRF 28
 #define H264_HDR_LEN 3
 
 typedef struct _RkMpiEncoder {
@@ -73,7 +72,6 @@ typedef struct _EncData {
     MppPacket packet;
     MppBuffer frm_buf;
     MppBuffer pkt_buf;
-    MppBuffer md_buf;
     MppEncSeiMode sei_mode;
 
     uint32_t hor_stride;
@@ -161,7 +159,7 @@ MPP_RET rk_encoder_get_extrainfo(RkMpiEncoder *context, MppPacket *packet) {
 }
 
 
-MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer packetOut, MppBuffer frameIn) {
+MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer pkt_buf_in, MppBuffer frm_buf_in, MppPacket *pkt_out) {
     MPP_RET ret = MPP_OK;
     MppFrame  frame = NULL;
     MppPacket packet = NULL;
@@ -177,10 +175,8 @@ MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer packetOut, MppBuffer fr
     mpp_frame_set_height(frame, context->encCfg.height);
     mpp_frame_set_hor_stride(frame, MPP_ALIGN(context->encCfg.width, 16));
     mpp_frame_set_ver_stride(frame, MPP_ALIGN(context->encCfg.height, 16));
-
-    mpp_frame_set_buffer(frame, frameIn);
-
-    mpp_packet_init_with_buffer(&packet, packetOut);
+    mpp_frame_set_buffer(frame, frm_buf_in);
+    mpp_packet_init_with_buffer(&packet, pkt_buf_in);
 
     do {
         ret = context->mpi->dequeue(context->mpiCtx, MPP_PORT_INPUT, &task);
@@ -199,7 +195,6 @@ MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer packetOut, MppBuffer fr
 
     mpp_task_meta_set_frame (task, KEY_INPUT_FRAME,  frame);
     mpp_task_meta_set_packet(task, KEY_OUTPUT_PACKET, packet);
-    //mpp_task_meta_set_buffer(task, KEY_MOTION_INFO, mv);
 
     ret = context->mpi->enqueue(context->mpiCtx, MPP_PORT_INPUT, task);
     if (ret) {
@@ -219,9 +214,6 @@ MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer packetOut, MppBuffer fr
 
             mpp_task_meta_get_packet(task, KEY_OUTPUT_PACKET, &packet_out);
 
-            if(packet_out == packet)
-                ms_error("encode frame failed");
-
             ret = context->mpi->enqueue(context->mpiCtx, MPP_PORT_OUTPUT, task);
             if (ret) {
                 ms_error("mpp task output enqueue failed\n");
@@ -231,12 +223,14 @@ MPP_RET rk_encode_frame(RkMpiEncoder *context, MppBuffer packetOut, MppBuffer fr
         }
     } while (1);
 
-    if (packet) {
-        mpp_packet_deinit(&packet);
+    if (packet && (packet != pkt_buf_in)) {
+        *pkt_out = packet;
     }
+
     if (frame) {
         mpp_frame_deinit(&frame);
     }
+
     return MPP_OK;
 }
 
@@ -274,7 +268,6 @@ static void enc_init(MSFilter *f){
     d->packet = NULL;
     d->frm_buf = NULL;
     d->pkt_buf = NULL;
-    d->md_buf = NULL;
     //d->sei_mode = MPP_ENC_SEI_MODE_ONE_FRAME;
 
     d->sei_mode = MPP_ENC_SEI_MODE_ONE_SEQ;
@@ -291,7 +284,7 @@ static void enc_init(MSFilter *f){
     d->ver_stride = MPP_ALIGN(d->vconf.vsize.height, 16);
 
     d->keyframe_int=10; /*10 seconds */
-    d->mode=0;
+    d->mode=1;
     d->framenum=0;
     d->generate_keyframe=FALSE;
     d->packer=NULL;
@@ -348,12 +341,6 @@ static void enc_preprocess(MSFilter *f){
         //goto MPP_TEST_OUT;
     }
 
-    ret = mpp_buffer_get(d->pkt_grp, &d->md_buf, mdinfo_size);
-    if (ret) {
-        ms_error("failed to get buffer for motion detection info ret %d\n", ret);
-        //goto MPP_TEST_OUT;
-    }
-
     rk_encoder_create(&d->encoder, MPP_VIDEO_CodingAVC);
 
 
@@ -368,18 +355,19 @@ static void enc_preprocess(MSFilter *f){
     d->encoder->encCfg.skip_cnt    = 0;
     d->encoder->encCfg.fps_in      = 30;
     d->encoder->encCfg.fps_out     = 30;
-    d->encoder->encCfg.bps         = 38400;
+    d->encoder->encCfg.bps         = 8 * 1024 * 200;
     d->encoder->encCfg.qp          = 24;
     d->encoder->encCfg.gop         = 60;
 
     d->encoder->encCfg.profile     = 100;
-    d->encoder->encCfg.level       = 41;
+    d->encoder->encCfg.level       = 22;
     d->encoder->encCfg.cabac_en    = 1;
 
     rk_encoder_set_seimode(d->encoder, &d->sei_mode);
-
     rk_encoder_set_cfg(d->encoder, &d->encoder->encCfg);
-    ms_message("set encoder w:%d,h:%d",d->vconf.vsize.width,d->vconf.vsize.height);
+
+    ms_message("set encoder w:%d h:%d sw:%d sh%d", d->vconf.vsize.width, d->vconf.vsize.height
+                , d->encoder->encCfg.hor_stride, d->encoder->encCfg.ver_stride);
 
     rk_encoder_get_extrainfo(d->encoder, &d->packet);
 
@@ -388,7 +376,7 @@ static void enc_preprocess(MSFilter *f){
         size_t len = mpp_packet_get_length(d->packet);
 
         d->extradata= malloc(len);
-        if(d->extradata== NULL) {
+        if(d->extradata == NULL) {
             ms_error("extradata malloc failed");
             rk_encoder_destory(d->encoder);
 
@@ -478,13 +466,15 @@ static void enc_process(MSFilter *f){
     while((im=ms_queue_get(f->inputs[0]))!=NULL){
         if (ms_yuv_buf_init_from_mblk(&pic,im)==0){
             int num_nals=0;
-
-
+            void *ptr = NULL;
+            size_t len = 0;
             void *buf = mpp_buffer_get_ptr(d->frm_buf);
             int y_size = pic.w * pic.h;
             int uv_size = pic.w * pic.h / 4;
 
-            //copy yuv 420 data
+            MppPacket packNal = NULL;
+
+            //copy yuv 420p data
             memcpy(buf, pic.planes[0], y_size);
             memcpy(buf + y_size, pic.planes[1], uv_size);
             memcpy(buf + y_size + uv_size, pic.planes[2], uv_size);
@@ -496,17 +486,19 @@ static void enc_process(MSFilter *f){
             if (d->generate_keyframe){
                 ms_message("generate key frame here!");
                 d->generate_keyframe=FALSE;
+                h264_nals_to_msgb(d->extradata, d->extradata_size, &nalus);
             }else {
                 //generate normal frame here
             }
 
-            rk_encode_frame(d->encoder, d->pkt_buf, d->frm_buf);
+            rk_encode_frame(d->encoder, d->pkt_buf, d->frm_buf, &packNal);
 
-            // write packet to file here
-            void *ptr	= mpp_buffer_get_ptr(d->pkt_buf);
-            size_t len	= mpp_buffer_get_size(d->pkt_buf);
+            if(!packNal){
+                continue;
+            }
 
-            ms_message("encode packet size %d", len);
+            ptr	= mpp_packet_get_pos(packNal);
+            len	= mpp_packet_get_length(packNal);
 
             if (ptr && len){
                 h264_nals_to_msgb(ptr, len, &nalus);
@@ -517,6 +509,7 @@ static void enc_process(MSFilter *f){
             } else {
                 ms_error("mpp_encoder_encode() error.");
             }
+            mpp_packet_deinit(&packNal);
         }
         freemsg(im);
     }
